@@ -1,0 +1,69 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - '**' # טריגר לכל הבראנצ'ים
+  pull_request:
+
+jobs:
+  # Job 1: מכין את התלויות ושומר אותן ב-Cache במידת הצורך
+  prepare-dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache dependencies
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+  # Job 2: רץ במקביל לטסטים ומבצע Build לאפליקציה (Cache Reader)
+  build-application:
+    runs-on: ubuntu-latest
+    needs: prepare-dependencies 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Build application
+        run: npm run build
+
+  # Job 3: רץ במקביל לבילד ומריץ בדיקות (Cache Reader)
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: prepare-dependencies 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Run tests
+        run: npm test
